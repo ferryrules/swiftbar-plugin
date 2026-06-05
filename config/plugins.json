@@ -1,0 +1,8 @@
+{
+  "calendar": "full",
+  "git-wip": "compact",
+  "github-prs": "full",
+  "linear-tickets": "full",
+  "search": "full",
+  "slack": "compact"
+}

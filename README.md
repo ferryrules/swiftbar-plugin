@@ -1,2 +1,2 @@
-# swiftbar-plugin
-hackathon
+# swiftbar
+SwiftBar plugins to make your life easy
