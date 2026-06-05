@@ -1,0 +1,2 @@
+# swiftbar-plugin
+hackathon
