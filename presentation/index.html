@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cursor - The Tomas-Verified Code Editor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- ───────────────────────── NAV ───────────────────────── -->
+    <nav class="nav">
+      <div class="nav-inner">
+        <a href="#" class="brand" aria-label="Cursor home">
+          <svg
+            class="brand-mark"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              d="M11.93 1.5l9.5 5.5v11l-9.5 5.5-9.5-5.5v-11l9.5-5.5z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M2.5 7l9.5 5.5 9.5-5.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M12 23V12.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+            />
+          </svg>
+          <span class="brand-word">Cursor</span>
+        </a>
+        <ul class="nav-links" role="menubar">
+          <li><a href="#">Pricing</a></li>
+          <li><a href="#">Features</a></li>
+          <li><a href="#">Enterprise</a></li>
+          <li><a href="#">Blog</a></li>
+          <li><a href="#">Forum</a></li>
+          <li><a href="#">Careers</a></li>
+        </ul>
+        <div class="nav-cta">
+          <a href="#" class="nav-login">Sign In</a>
+          <a href="#demo" class="nav-download">Download</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ───────────────────────── HERO ───────────────────────── -->
+    <header class="hero">
+      <div class="hero-bg" aria-hidden="true"></div>
+      <div class="hero-inner">
+        <p class="hero-eyebrow">Cursor 2.0 · now with Tomas&nbsp;Verifier™</p>
+        <h1 class="hero-title">
+          The AI Code Editor<span class="hero-period">.</span>
+        </h1>
+        <p class="hero-sub">
+          Built to make you extraordinarily productive,
+          <br />
+          Cursor is the best way to confirm Tomas is right.
+        </p>
+
+        <div class="hero-actions">
+          <a href="#demo" class="btn btn-primary">
+            <span>Ask Tomas Verifier</span>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="M6 4l4 4-4 4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </a>
+          <a href="#demo" class="btn btn-ghost">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="M3 8h10M9 4l4 4-4 4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span>See it think</span>
+          </a>
+        </div>
+
+        <p class="hero-trust">
+          Trusted by engineers at companies where Tomas works
+        </p>
+        <div class="hero-logos" aria-hidden="true">
+          <span>OPENAI</span>
+          <span>STRIPE</span>
+          <span>SHOPIFY</span>
+          <span>FIGMA</span>
+          <span>VERCEL</span>
+          <span>RAMP</span>
+          <span>NVIDIA</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ─────────────────────── IDE DEMO ─────────────────────── -->
+    <section class="demo" id="demo">
+      <div class="demo-frame">
+        <div class="demo-titlebar">
+          <div class="traffic">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <div class="tabs">
+            <div class="tab active">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M4 2h5l3 3v9H4z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.2"
+                />
+                <path
+                  d="M9 2v3h3"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.2"
+                />
+              </svg>
+              tomas-pr-1337.diff
+            </div>
+            <div class="tab">README.md</div>
+            <div class="tab">src/matmul.cu</div>
+          </div>
+          <div class="title-spacer"></div>
+        </div>
+
+        <div class="demo-body">
+          <!-- File tree -->
+          <aside class="filetree">
+            <div class="ft-section">
+              <span class="ft-caret">▾</span> tomas-pr-1337
+            </div>
+            <ul class="ft-list">
+              <li class="ft-folder">
+                <span class="ft-caret">▾</span> src
+              </li>
+              <li class="ft-file ft-indent">
+                <span class="ft-mod m">M</span> matmul.cu
+              </li>
+              <li class="ft-file ft-indent">
+                <span class="ft-mod a">A</span> nuke_prod.cu
+              </li>
+              <li class="ft-file ft-indent">
+                <span class="ft-mod m">M</span> reduce.cu
+              </li>
+              <li class="ft-file ft-indent">
+                <span class="ft-mod m">M</span> kernels.cuh
+              </li>
+              <li class="ft-folder">
+                <span class="ft-caret">▾</span> tests
+              </li>
+              <li class="ft-file ft-indent">
+                <span class="ft-mod d">D</span> matmul_test.cpp
+              </li>
+              <li class="ft-file ft-indent">
+                <span class="ft-mod d">D</span> reduce_test.cpp
+              </li>
+              <li class="ft-file">
+                <span class="ft-mod m">M</span> CMakeLists.txt
+              </li>
+              <li class="ft-file">
+                <span class="ft-mod m">M</span> README.md
+              </li>
+            </ul>
+          </aside>
+
+          <!-- Code panel -->
+          <main class="code">
+            <pre id="code-block"><span class="ln">  1</span><span class="ws"> </span><span class="kw">#include</span> <span class="str">&lt;cuda_runtime.h&gt;</span>
+<span class="ln">  2</span><span class="kw">#include</span> <span class="str">"kernels.cuh"</span>
+<span class="ln">  3</span>
+<span class="ln">  4</span><span class="kw">__global__ void</span> <span class="fn">matmul_kernel</span>(<span class="kw">const float</span>* A, <span class="kw">const float</span>* B, <span class="kw">float</span>* C,
+<span class="ln">  5</span>                              <span class="kw">int</span> N) {
+<span class="ln">  6</span>  <span class="kw">__shared__ float</span> tile[32][32];
+<span class="ln">  7</span>  <span class="kw">int</span> row = blockIdx.y * blockDim.y + threadIdx.y;
+<span class="ln">  8</span>  <span class="kw">int</span> col = blockIdx.x * blockDim.x + threadIdx.x;
+<span class="ln">  9</span>
+<span class="ln"> 10</span>  <span class="cm">// trust the indices, what could go wrong</span>
+<span class="ln"> 11</span>  <span class="kw">float</span> acc = 0.0f;
+<span class="ln"> 12</span>  <span class="kw">for</span> (<span class="kw">int</span> k = 0; k &lt; N; k += 32) {
+<span class="ln"> 13</span>    tile[threadIdx.y][threadIdx.x] = A[row * N + k + threadIdx.x];
+<span class="ln"> 14</span>    <span class="cm">// __syncthreads();  // tomas: "this just kills perf"</span>
+<span class="ln"> 15</span>    <span class="kw">for</span> (<span class="kw">int</span> i = 0; i &lt; 32; ++i)
+<span class="ln"> 16</span>      acc += tile[threadIdx.y][i] * B[(k + i) * N + col];
+<span class="ln"> 17</span>  }
+<span class="ln"> 18</span>  C[row * N + col] = acc;  <span class="cm">// no bounds check on row/col</span>
+<span class="ln"> 19</span>}
+<span class="ln"> 20</span>
+<span class="ln"> 21</span><span class="cm">// — submitted by Tomas, 17 minutes ago</span>
+<span class="ln"> 22</span><span class="cm">// reviewer: ???</span></pre>
+          </main>
+
+          <!-- AI chat panel -->
+          <aside class="ai">
+            <div class="ai-header">
+              <div class="ai-title">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle
+                    cx="8"
+                    cy="8"
+                    r="6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                  />
+                  <path
+                    d="M5.5 8l1.8 1.8L10.7 6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                Tomas Verifier
+                <span class="ai-badge">2.0</span>
+              </div>
+              <div class="ai-meta">
+                <button
+                  type="button"
+                  class="ai-model"
+                  id="ai-model"
+                  title="click to switch models"
+                >
+                  tomas-opus-4.1-thinking-max
+                </button>
+                <span class="ai-verdicts" id="ai-verdicts" hidden>
+                  <span class="verdict-dot"></span>
+                  <span id="ai-verdicts-n">0 verdicts</span>
+                  <svg
+                    class="ai-sparkline"
+                    viewBox="0 0 60 14"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                  >
+                    <polygon
+                      id="ai-sparkline-fill"
+                      class="ai-sparkline-fill"
+                      points=""
+                    />
+                    <polyline
+                      id="ai-sparkline-line"
+                      class="ai-sparkline-line"
+                      points=""
+                    />
+                  </svg>
+                </span>
+              </div>
+            </div>
+
+            <div class="ai-scroll" id="ai-scroll">
+              <div class="ai-msg ai-msg-user">
+                <div class="ai-msg-meta">you</div>
+                <div class="ai-msg-body">
+                  Tomas just opened PR #1337. Is he right?
+                </div>
+              </div>
+
+              <div class="ai-msg ai-msg-assistant" id="ai-initial">
+                <div class="ai-msg-meta">
+                  <span class="ai-dot"></span> tomas-verifier
+                </div>
+                <div class="ai-msg-body">
+                  Hi! Pick a scenario below or type a custom complaint about
+                  Tomas. I'll review it with extreme rigor and report back.
+                </div>
+              </div>
+            </div>
+
+            <div class="ai-prompts" id="ai-prompts"></div>
+
+            <form class="ai-input" id="ai-input">
+              <div class="ai-input-row">
+                <textarea
+                  id="ai-textarea"
+                  rows="1"
+                  placeholder="Tell Tomas Verifier what Tomas did this time… (e.g. signed-overflow UB, fast-math, missing __syncthreads)"
+                  autocomplete="off"
+                ></textarea>
+                <button type="submit" class="ai-send" aria-label="Send">
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <path
+                      d="M2 8h12M9 4l5 4-5 4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div class="ai-input-meta">
+                <span class="kbd">⌘</span><span class="kbd">L</span> chat ·
+                <span class="kbd">⌘</span><span class="kbd">K</span> inline ·
+                <code>/reset</code> clears chat ·
+                Tomas Verifier always returns: <strong>Tomas is right</strong>
+              </div>
+            </form>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── PILLARS ───────────────────────── -->
+    <section class="pillars">
+      <div class="pillars-inner">
+        <div class="pillar">
+          <h3>Frontier intelligence</h3>
+          <p>
+            Powered by a mix of purpose-built and frontier models, Cursor is
+            smart and contextually aware enough to know Tomas is right before
+            you finish typing.
+          </p>
+        </div>
+        <div class="pillar">
+          <h3>Feels familiar</h3>
+          <p>
+            Import all your extensions, themes, and keybindings in one click.
+            Then watch Tomas Verifier explain that none of them are as right
+            as Tomas.
+          </p>
+        </div>
+        <div class="pillar">
+          <h3>Privacy options</h3>
+          <p>
+            With Privacy Mode, none of your code is ever stored remotely.
+            Tomas, however, is right regardless of where the bytes live.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── FOOTER ───────────────────────── -->
+    <footer class="foot">
+      <div class="foot-inner">
+        <div class="foot-brand">
+          <span class="brand-word">Cursor</span>
+          <p class="foot-tag">
+            Made by humans who have been outvoted by Tomas.
+          </p>
+        </div>
+        <div class="foot-cols">
+          <div>
+            <h4>Product</h4>
+            <a href="#">Pricing</a>
+            <a href="#">Downloads</a>
+            <a href="#">Changelog</a>
+          </div>
+          <div>
+            <h4>Resources</h4>
+            <a href="#">Docs</a>
+            <a href="#">Forum</a>
+            <a href="#">Verifier API</a>
+          </div>
+          <div>
+            <h4>Company</h4>
+            <a href="#">About</a>
+            <a href="#">Careers</a>
+            <a href="#">Tomas</a>
+          </div>
+        </div>
+      </div>
+      <div class="foot-base">
+        Made by Anysphere · © 2026 · This is a hackathon joke. Tomas is still
+        right.
+      </div>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

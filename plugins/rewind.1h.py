@@ -10,8 +10,10 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
+import textwrap
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,8 +23,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib"))
 from config import is_compact
 from dashboard import print_footer, sanitize
 from paths import (
+    FOCUS_STATE,
+    PRESENTATION_INDEX,
     REWIND_ACTIVE_PIN,
     REWIND_DEMO_FLAG,
+    REWIND_FORGET_LEDGER,
     REWIND_IGNORE,
     REWIND_INDEXER_LOG,
     REWIND_SNAPSHOT,
@@ -32,6 +37,7 @@ from style import HEX_BLUE, HEX_DIM, HEX_GREEN, HEX_MUTED, HEX_TEXT, HEX_WARN
 
 PLUGIN_PATH = os.path.abspath(__file__)
 INDEXER_PATH = str(Path(__file__).resolve().parent.parent / "tools" / "rewind-indexer.py")
+WRAPUP_PATH = str(Path(__file__).resolve().parent.parent / "tools" / "rewind-wrapup.py")
 SLUG = "rewind"
 CURSOR_BUNDLE = "com.todesktop.230313mzl4w4u92"
 
@@ -77,6 +83,129 @@ def _link_attrs(link):
     return ""
 
 
+FORGET_DEBOUNCE_SEC = 300
+FORGET_ESCALATE_AT = 3
+FORGET_LEDGER_TTL_SEC = 7 * 24 * 3600
+
+
+def _fingerprint_forget(text):
+    """Stable identifier for a forget line so we can track it across snapshots.
+    Prefers ticket IDs (PROJ-123) → PR numbers (#456) → first 60 chars of text."""
+    if not text:
+        return None
+    m = re.search(r"\b[A-Z][A-Z0-9]+-\d+\b", text)
+    if m:
+        return m.group(0)
+    m = re.search(r"#(\d+)", text)
+    if m:
+        return f"#{m.group(1)}"
+    norm = re.sub(r"\s+", " ", text.strip().lower())
+    return norm[:60] or None
+
+
+def _read_forget_ledger():
+    try:
+        return json.loads(REWIND_FORGET_LEDGER.read_text())
+    except Exception:
+        return {}
+
+
+def _write_forget_ledger(ledger):
+    try:
+        REWIND_FORGET_LEDGER.parent.mkdir(parents=True, exist_ok=True)
+        REWIND_FORGET_LEDGER.write_text(json.dumps(ledger))
+    except Exception:
+        pass
+
+
+def _bump_forget_ledger(fingerprint):
+    """Bump the seen-count for `fingerprint` (debounced). Also gc-s stale entries.
+    Returns the entry's count after bumping (0 if no fingerprint)."""
+    if not fingerprint:
+        return 0
+    now = time.time()
+    ledger = _read_forget_ledger()
+
+    cutoff = now - FORGET_LEDGER_TTL_SEC
+    ledger = {k: v for k, v in ledger.items()
+              if isinstance(v, dict) and v.get("last_seen", 0) >= cutoff}
+
+    entry = ledger.get(fingerprint, {"first_seen": now, "last_seen": 0, "count": 0})
+    if now - entry.get("last_seen", 0) >= FORGET_DEBOUNCE_SEC:
+        entry["count"] = entry.get("count", 0) + 1
+        entry["last_seen"] = now
+        entry.setdefault("first_seen", now)
+        ledger[fingerprint] = entry
+        _write_forget_ledger(ledger)
+    return entry.get("count", 0)
+
+
+def _ack_forget(fingerprint):
+    if not fingerprint:
+        return
+    ledger = _read_forget_ledger()
+    if fingerprint in ledger:
+        del ledger[fingerprint]
+        _write_forget_ledger(ledger)
+
+
+FOCUS_DURATIONS = [(25, "focus"), (50, "deep work")]
+
+
+def _focus_active():
+    """True iff a focus timer is currently running (state file exists, end_at in future)."""
+    try:
+        data = json.loads(FOCUS_STATE.read_text())
+        end_at = datetime.fromisoformat(data["end_at"])
+        if end_at.tzinfo is None:
+            end_at = end_at.replace(tzinfo=timezone.utc)
+        return end_at > datetime.now(timezone.utc)
+    except Exception:
+        return False
+
+
+def _focus_script():
+    """Locate focus.NN.py — checks plugins/ first, then plugin_library/."""
+    here = Path(__file__).resolve().parent
+    for d in (here, here.parent / "plugin_library"):
+        if not d.exists():
+            continue
+        matches = sorted(d.glob("focus.*.py"))
+        if matches:
+            return matches[0]
+    return None
+
+
+def render_focus_suggestion(synth):
+    """One-click 'start a focus timer on the next action'. Hidden when a timer
+    is already running, when synth has no next action, or when the focus
+    plugin can't be located."""
+    nxt = (synth or {}).get("next")
+    if not nxt or _focus_active():
+        return
+    focus = _focus_script()
+    if not focus:
+        return
+    label = sanitize(nxt, 40)
+    arg_label = label.replace("'", "\u2019")
+    print(f"🎯 Focus on: {label} | size=12 color={HEX_GREEN}")
+    for minutes, kind in FOCUS_DURATIONS:
+        print(f"--Start {minutes}-min {kind} | bash='{focus}' param1=start param2='{arg_label}' param3={minutes} terminal=false refresh=true")
+    print("---")
+
+
+def render_recap(synth):
+    """LLM-only narrative paragraph. Hidden when Ollama is unreachable
+    (template synth never sets `recap`)."""
+    recap = (synth or {}).get("recap")
+    if not recap:
+        return
+    print(f"📖 Recap | size=11 color={HEX_MUTED}")
+    for line in textwrap.wrap(recap, width=68):
+        print(f"{line} | color={HEX_TEXT} size=12")
+    print("---")
+
+
 def render_synth(synth):
     src = (synth or {}).get("_source")
     runtime = (synth or {}).get("_runtime") or ""
@@ -99,9 +228,19 @@ def render_synth(synth):
         attrs = _link_attrs(links.get("next"))
         print(f"{sanitize(synth['next'], 75)} | color={HEX_GREEN} {attrs}".rstrip())
     if (synth or {}).get("forget"):
-        print(f"⚠️ Don't forget | color={HEX_MUTED} size=12")
+        forget = synth["forget"]
         attrs = _link_attrs(links.get("forget"))
-        print(f"{sanitize(synth['forget'], 75)} | color={HEX_WARN} {attrs}".rstrip())
+        fp = _fingerprint_forget(forget)
+        count = _bump_forget_ledger(fp) if fp else 0
+        escalated = count >= FORGET_ESCALATE_AT
+        header = "⚠️ Don't forget"
+        if escalated:
+            header += f" · seen {count}× — still ignored"
+        print(f"{header} | color={HEX_MUTED} size=12")
+        line_color = "#f0883e" if escalated else HEX_WARN
+        print(f"{sanitize(forget, 75)} | color={line_color} {attrs}".rstrip())
+        if escalated and fp:
+            print(f"--✓ Mark handled | bash='{PLUGIN_PATH}' param1=forget-ack param2='{fp}' terminal=false refresh=true color={HEX_MUTED}")
 
 
 TIMELINE_GROUPS = [
@@ -197,20 +336,102 @@ def render_timeline(timeline, window_min, ignore_min=0, group_cap=12, pinned=Fal
             print(f"--… +{len(items) - group_cap} more | color={HEX_DIM}")
 
 
-def render_open_tabs(tabs):
+def render_open_tabs(signals, synth=None):
+    """Tabs that are open AND were visited within the active window.
+    Cross-refs `open_tabs` (currently open) with `browser` (window-filtered
+    history). Each surviving tab is annotated with its last-visit time, then
+    bucketed by `synth.tab_classes` (LLM-classified, domain-keyed) into
+    active / reference / noise — noise collapses into a submenu."""
+    tabs = signals.get("open_tabs") or []
     if not tabs:
         return
+
+    last_visit = {}
+    for h in signals.get("browser") or []:
+        url, ts = h.get("url"), h.get("ts")
+        if url and ts and ts > last_visit.get(url, 0):
+            last_visit[url] = ts
+
+    tabs = [t for t in tabs if t.get("url") in last_visit]
+    if not tabs:
+        return
+    tabs.sort(key=lambda t: -last_visit.get(t.get("url"), 0))
+
+    classes = (synth or {}).get("tab_classes") or {}
+
+    def _class(t):
+        cls = classes.get((t.get("domain") or "").lower())
+        if cls in ("active", "reference", "noise"):
+            return cls
+        return "active" if t.get("signal") else "reference"
+
+    bucketed = {"active": [], "reference": [], "noise": []}
+    for t in tabs:
+        bucketed[_class(t)].append(t)
+
+    visible = bucketed["active"] + bucketed["reference"]
+    if not visible and not bucketed["noise"]:
+        return
+
     print("---")
-    print(f"📑 Open tabs ({len(tabs)}) | size=11 color={HEX_MUTED}")
-    for t in tabs[:12]:
+    print(f"📑 Open tabs · touched recently ({len(tabs)}) | size=11 color={HEX_MUTED}")
+
+    def _render_row(t, indent=""):
         title = sanitize(t.get("title", "") or t.get("domain", ""), 60)
         domain = t.get("domain") or ""
         marker = "★ " if t.get("signal") else ""
-        line = f"{marker}{title}  · {domain}"
+        ago = fmt_ago(last_visit[t["url"]])
+        line = f"{indent}{marker}{title}  · {domain}  · {ago}"
         color = HEX_BLUE if t.get("signal") else HEX_TEXT
         print(f"{line} | href={t['url']} color={color}")
-    if len(tabs) > 12:
-        print(f"… +{len(tabs) - 12} more | color={HEX_DIM}")
+
+    for t in visible[:12]:
+        _render_row(t)
+    if len(visible) > 12:
+        print(f"… +{len(visible) - 12} more | color={HEX_DIM}")
+
+    if bucketed["noise"]:
+        n = len(bucketed["noise"])
+        print(f"🙈 Hidden noise ({n}) | size=11 color={HEX_DIM}")
+        for t in bucketed["noise"][:12]:
+            _render_row(t, indent="--")
+
+
+def render_closed_tabs(signals):
+    """Pages visited inside the active window that aren't currently open tabs.
+
+    Catches the case where you finished with a doc, closed it, but want to
+    re-find it. Domains in SIGNAL_DOMAINS (work tools) are pinned to the top."""
+    history = signals.get("browser") or []
+    if not history:
+        return
+
+    open_urls = {t.get("url") for t in (signals.get("open_tabs") or []) if t.get("url")}
+
+    latest = {}
+    for h in history:
+        url = h.get("url")
+        if not url or url in open_urls:
+            continue
+        prev = latest.get(url)
+        if not prev or (h.get("ts") or 0) > (prev.get("ts") or 0):
+            latest[url] = h
+
+    closed = sorted(latest.values(), key=lambda h: -(h.get("ts") or 0))
+    closed.sort(key=lambda h: (0 if h.get("signal") else 1))
+    if not closed:
+        return
+
+    print(f"📕 Closed tabs · visited & closed ({len(closed)}) | size=11 color={HEX_MUTED}")
+    for h in closed[:25]:
+        title = sanitize(h.get("title", "") or h.get("domain", ""), 60)
+        domain = h.get("domain") or ""
+        marker = "★ " if h.get("signal") else ""
+        ago = fmt_ago(h.get("ts") or 0)
+        color = HEX_BLUE if h.get("signal") else HEX_TEXT
+        print(f"--{marker}{title}  · {domain}  · {ago} | href={h['url']} color={color}")
+    if len(closed) > 25:
+        print(f"--… +{len(closed) - 25} more | color={HEX_DIM}")
 
 
 def render_browser_permission(denied):
@@ -259,6 +480,13 @@ def render_window_switcher(window_min, ignore_min):
         print(f"--{label}{mark} | bash='{PLUGIN_PATH}' param1=ignore param2={choice} terminal=false refresh=true")
 
 
+def render_wrapup_action():
+    print("---")
+    print(f"📓 Wrap up today | bash={sys.executable} param1='{WRAPUP_PATH}' terminal=false refresh=false")
+    print(f"--…since 9am | bash={sys.executable} param1='{WRAPUP_PATH}' param2=--start-hour param3=9 terminal=false refresh=false")
+    print(f"--…last 4 hours | bash={sys.executable} param1='{WRAPUP_PATH}' param2=--since-min param3=240 terminal=false refresh=false")
+
+
 def render_pin_actions(active_pin_name):
     print("---")
     if active_pin_name:
@@ -298,15 +526,23 @@ def render_indexer_controls(snapshot, age):
 
 def render_demo_controls(active_scenario):
     from rewind import demo
-    print(f"🎬 Demo mode | size=12 color={HEX_MUTED}")
     if active_scenario:
         label = demo.SCENARIOS.get(active_scenario, ("(unknown)",))[0]
-        print(f"--Active: {label} | color={HEX_WARN}")
-        print(f"--↩ Back to live data | bash='{PLUGIN_PATH}' param1=demo-off terminal=false refresh=true color={HEX_GREEN}")
-        print(f"--― Switch scenario ― | color={HEX_DIM}")
+        print(f"🎬 Demo mode · {label} | size=12 color={HEX_WARN}")
+    else:
+        print(f"🎬 Demo mode | size=12 color={HEX_MUTED}")
+
+    live_dot = "○" if active_scenario else "●"
+    live_color = HEX_TEXT if active_scenario else HEX_GREEN
+    print(f"--{live_dot}  Live data | bash='{PLUGIN_PATH}' param1=demo-off terminal=false refresh=true color={live_color}")
+
+    print(f"--― Scenarios ― | color={HEX_DIM}")
     for name, (label, _fn) in demo.SCENARIOS.items():
-        mark = " ✓" if name == active_scenario else ""
-        print(f"--{label}{mark} | bash='{PLUGIN_PATH}' param1=demo-on param2={name} terminal=false refresh=true")
+        is_active = name == active_scenario
+        dot = "●" if is_active else "○"
+        color = HEX_WARN if is_active else HEX_TEXT
+        print(f"--{dot}  {label} | bash='{PLUGIN_PATH}' param1=demo-on param2={name} terminal=false refresh=true color={color}")
+
     print(f"--― Pinned moments ― | color={HEX_DIM}")
     print(f"--Seed 3 demo pins | bash='{PLUGIN_PATH}' param1=demo-seed-pins terminal=false refresh=true")
     print(f"--Remove demo pins | bash='{PLUGIN_PATH}' param1=demo-unseed-pins terminal=false refresh=true")
@@ -330,6 +566,11 @@ def render(window_min, ignore_min, snapshot, fda_needed=False, age=None,
         print(f"⏪ Rewind {window_min}m{suffix}")
     print("---")
 
+    if PRESENTATION_INDEX.exists():
+        print(f"🎩 Tomas Verifier 2.0 | bash=/usr/bin/open param1='{PRESENTATION_INDEX}' terminal=false refresh=false color={HEX_GREEN}")
+        print(f"--Verdict: Tomas is right · 99.973% confident | color={HEX_MUTED} size=11")
+        print("---")
+
     if demo_scenario:
         print(f"🎬 Demo mode · {demo_scenario} · synthetic data, indexer paused | size=11 color={HEX_WARN}")
         print("---")
@@ -345,11 +586,14 @@ def render(window_min, ignore_min, snapshot, fda_needed=False, age=None,
         print(f"Skipping last {ignore_min} min — showing the {window_min} min before that | size=11 color={HEX_WARN}")
         print("---")
 
+    render_recap(synth)
+    render_focus_suggestion(synth)
     render_synth(synth)
     print("---")
 
     render_timeline(timeline, window_min, ignore_min, pinned=bool(active_pin_name))
-    render_open_tabs(signals.get("open_tabs"))
+    render_open_tabs(signals, synth)
+    render_closed_tabs(signals)
     render_open_items(signals)
     render_clipboard(signals)
 
@@ -358,6 +602,7 @@ def render(window_min, ignore_min, snapshot, fda_needed=False, age=None,
     print("---")
     if not active_pin_name:
         render_window_switcher(window_min, ignore_min)
+    render_wrapup_action()
     render_pin_actions(active_pin_name)
     render_demo_controls(demo_scenario)
     render_indexer_controls(snapshot, age)
@@ -497,14 +742,30 @@ def cmd_pin(label):
     )
 
 
+def _pin_label_suggestion():
+    """LLM-suggested 3-5 word label for the current snapshot. Empty string on any failure."""
+    snapshot = _read_snapshot()
+    if not snapshot:
+        return ""
+    try:
+        from rewind import suggest_label
+        return suggest_label(
+            timeline=snapshot.get("timeline") or [],
+            synth=snapshot.get("synth") or {},
+        ) or ""
+    except Exception:
+        return ""
+
+
 def cmd_pin_prompt():
-    """Pop a native dialog to label the pin, then save."""
+    """Pop a native dialog to label the pin (pre-filled with an LLM suggestion), then save."""
+    suggestion = _pin_label_suggestion().replace('"', "'")
     script = (
         'tell application "System Events"\n'
         '  activate\n'
         '  try\n'
         '    set theLabel to text returned of (display dialog '
-        '"Pin this moment as:" default answer "" buttons {"Cancel","Pin"} '
+        f'"Pin this moment as:" default answer "{suggestion}" buttons {{"Cancel","Pin"}} '
         'default button "Pin" with title "Rewind")\n'
         '    return theLabel\n'
         '  on error\n'
@@ -603,6 +864,9 @@ def main():
         return
     if len(sys.argv) > 1 and sys.argv[1] == "speak":
         cmd_speak()
+        return
+    if len(sys.argv) > 2 and sys.argv[1] == "forget-ack":
+        _ack_forget(sys.argv[2])
         return
 
     active = _active_pin_name()
